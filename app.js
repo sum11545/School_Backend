@@ -4,9 +4,22 @@ require("dotenv").config();
 const pool = require("./db");
 const { addSchoolsValidator } = require("./vaildation");
 const { validationResult } = require("express-validator");
+const axios = require("axios");
 const port = 3000;
 
 app.use(express.json());
+
+function websiteReloder() {
+  axios
+    .get("https://school-backend-t89h.onrender.com")
+    .then((res) => {
+      console.log(`Reloaded status code ${res.status}`);
+    })
+    .catch((err) => {
+      console.log(`Error reloading `, err.message);
+    });
+}
+setInterval(websiteReloder, 30000);
 
 app.get("/", (req, res) => {
   res.send("Hello From School Backend ");
@@ -25,6 +38,24 @@ app.post("/addSchool", addSchoolsValidator, async (req, res) => {
   }
 
   try {
+    const checkQuery = `
+      SELECT * FROM schools 
+      WHERE LOWER(name) = LOWER($1) AND LOWER(address) = LOWER($2) 
+      AND latitude = $3 AND longitude = $4
+    `;
+    const existingSchool = await pool.query(checkQuery, [
+      name,
+      address,
+      parseFloat(latitude),
+      parseFloat(longitude),
+    ]);
+
+    if (existingSchool.rows.length > 0) {
+      return res
+        .status(409)
+        .json({ error: "School already exists in the database" });
+    }
+
     const query = `INSERT INTO schools (name, address, latitude, longitude) VALUES ($1, $2, $3, $4) RETURNING *`;
     const result = await pool.query(query, [
       name,
