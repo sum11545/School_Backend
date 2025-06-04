@@ -2,16 +2,22 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 const pool = require("./db");
+const { addSchoolsValidator } = require("./vaildation");
+const { validationResult } = require("express-validator");
 const port = 3000;
 
-app.use(express.json()); //
+app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("Hello World");
+  res.send("Hello From School Backend ");
 });
 
-//
-app.post("/addSchool", async (req, res) => {
+app.post("/addSchool", addSchoolsValidator, async (req, res) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   const { name, address, latitude, longitude } = req.body;
 
   if (!name || !address || !latitude || !longitude) {
@@ -81,6 +87,7 @@ app.get("/listSchools", async (req, res) => {
           school.longitude
         ),
       }))
+      .filter((school) => school.distance <= 10)
       .sort((a, b) => a.distance - b.distance);
 
     res.status(200).json({ schools: sortedSchools });
@@ -90,7 +97,6 @@ app.get("/listSchools", async (req, res) => {
   }
 });
 
-// ✅ START THE SERVER
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
